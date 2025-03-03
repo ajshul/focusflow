@@ -125,36 +125,6 @@ const LifeFlowApp: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const taskListRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Life Coach messages
-  useEffect(() => {
-    if (showCoach && !coachInitialized) {
-      setMessages([
-        {
-          sender: "ai",
-          content: `Hello ${user.name}! I'm your ADHD life coach. How can I support you today?`,
-        },
-      ]);
-      setCoachInitialized(true);
-    }
-  }, [showCoach, coachInitialized, user.name]);
-
-  // Keep focus on the input when typing
-  useEffect(() => {
-    const handleWindowClick = () => {
-      if (document.activeElement !== inputRef.current) {
-        inputRef.current?.focus();
-      }
-    };
-
-    if (selectedTask || showCoach) {
-      document.addEventListener("click", handleWindowClick);
-    }
-
-    return () => {
-      document.removeEventListener("click", handleWindowClick);
-    };
-  }, [selectedTask, showCoach]);
-
   // Scroll chat to bottom when new messages arrive
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -163,6 +133,18 @@ const LifeFlowApp: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
     }
   }, [messages]);
 
+  const openCoach = () => {
+    setShowCoach(true);
+    if (!coachInitialized) {
+      setMessages([
+        {
+          sender: "ai",
+          content: `Hello ${user.name}! I'm your ADHD life coach. How can I support you today?`,
+        },
+      ]);
+      setCoachInitialized(true);
+    }
+  };
   // Pomodoro Timer Effect
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -415,7 +397,7 @@ const LifeFlowApp: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
     setCoachInitialized(false);
 
     // Reset messages when returning to tasks
-    setMessages([]);
+    // DON'T RESET ANYMORE: setMessages([]);
 
     // Scroll back to top of task list
     setTimeout(() => {
@@ -755,7 +737,7 @@ const LifeFlowApp: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
             </button>
             <button
               className="p-2 bg-indigo-500 rounded-full"
-              onClick={() => setShowCoach(true)}
+              onClick={openCoach}
             >
               <Brain size={20} />
             </button>
@@ -1225,7 +1207,6 @@ const LifeFlowApp: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
 
             <div className="flex">
               <input
-                ref={inputRef}
                 type="text"
                 className="flex-grow border rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Ask about this task..."
@@ -1255,7 +1236,7 @@ const LifeFlowApp: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
           <button
             className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
             onClick={() => {
-              setShowCoach(true);
+              openCoach();
               const taskName = selectedTask.title;
               handleSendMessage(`I need help with my task: "${taskName}"`);
             }}

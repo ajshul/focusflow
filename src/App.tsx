@@ -41,8 +41,11 @@ function App() {
     };
 
     initialize();
-  }, [user.id, user]);
+  }, []);
 
+  useEffect(() => {
+    storageService.saveUserProfile(user);
+  }, [user]);
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
