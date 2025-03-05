@@ -7,6 +7,8 @@ interface AppStateContextType {
   setShowEmailModal: (show: boolean) => void;
   showAddTaskModal: boolean;
   setShowAddTaskModal: (show: boolean) => void;
+  showSettings: boolean;
+  setShowSettings: (show: boolean) => void;
   focusMode: boolean;
   setFocusMode: (mode: boolean) => void;
   coachInitialized: boolean;
@@ -24,6 +26,7 @@ export const AppStateProvider: React.FC<{
   const [showCoach, setShowCoach] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [coachInitialized, setCoachInitialized] = useState(false);
 
@@ -40,6 +43,8 @@ export const AppStateProvider: React.FC<{
     setShowEmailModal,
     showAddTaskModal,
     setShowAddTaskModal,
+    showSettings,
+    setShowSettings,
     focusMode,
     setFocusMode,
     coachInitialized,

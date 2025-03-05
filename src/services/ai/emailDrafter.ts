@@ -4,7 +4,7 @@ import { UserProfile } from "../../models/types";
 
 const llm = new ChatOpenAI({
   openAIApiKey: process.env.REACT_APP_OPENAI_API_KEY,
-  modelName: "gpt-4",
+  modelName: "gpt-4o",
   temperature: 0.3,
 });
 

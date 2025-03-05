@@ -32,13 +32,8 @@ const LifeCoachView: React.FC<LifeCoachViewProps> = ({
   };
 
   // Initialize chat functionality
-  const {
-    messages,
-    isGenerating,
-    chatInputRef,
-    handleInputChange,
-    sendMessage,
-  } = useChat(user, threadId, getCoachContext);
+  const { messages, isGenerating, inputValue, handleInputChange, sendMessage } =
+    useChat(user, threadId, getCoachContext);
 
   // Chat presets
   const chatPresets = [
@@ -117,7 +112,7 @@ const LifeCoachView: React.FC<LifeCoachViewProps> = ({
             isGenerating={isGenerating}
             handleSendMessage={sendMessage}
             handleInputChange={handleInputChange}
-            inputValue={chatInputRef.current}
+            inputValue={inputValue}
             title="Ask Your Coach"
           />
 

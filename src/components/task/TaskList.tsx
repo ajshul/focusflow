@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { PlusCircle, Calendar, Brain } from "lucide-react";
+import { PlusCircle, Calendar, Brain, Settings } from "lucide-react";
 import TaskItem from "./TaskItem";
 import { Task, UserProfile } from "../../models/types";
 import { useTaskContext } from "../../context/TaskContext";
@@ -9,12 +9,14 @@ interface TaskListProps {
   user: UserProfile;
   onOpenCoach: () => void;
   onSelectTask: (task: Task) => void;
+  onOpenSettings: () => void;
 }
 
 const TaskList: React.FC<TaskListProps> = ({
   user,
   onOpenCoach,
   onSelectTask,
+  onOpenSettings,
 }) => {
   const {
     filteredAndSortedTasks,
@@ -39,11 +41,16 @@ const TaskList: React.FC<TaskListProps> = ({
       <div className="bg-indigo-600 text-white p-4">
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold">Today's Focus</h1>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
             <button
               type="button"
-              className="p-2 bg-indigo-500 rounded-full mr-2"
+              className="p-2 bg-indigo-500 rounded-full"
+              onClick={onOpenSettings}
+              title="Memory Settings"
             >
+              <Settings size={20} />
+            </button>
+            <button type="button" className="p-2 bg-indigo-500 rounded-full">
               <Calendar size={20} />
             </button>
             <button

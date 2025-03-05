@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { UserProfile, Task } from "../models/types";
 import { TaskProvider, useTaskContext } from "../context/TaskContext";
 import {
@@ -10,7 +10,9 @@ import TaskDetail from "./task/TaskDetail";
 import LifeCoachView from "./coach/LifeCoachView";
 import AddTaskModal from "./task/AddTaskModal";
 import EmailModal from "./email/EmailModal";
+import MemorySettings from "./settings/MemorySettings";
 import { useEmailDraft } from "../hooks/useEmailDraft";
+import { Settings } from "lucide-react";
 
 interface LifeFlowAppProps {
   threadId: string;
@@ -38,6 +40,8 @@ const LifeFlowAppContent: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
     showEmailModal,
     setShowEmailModal,
     showAddTaskModal,
+    showSettings,
+    setShowSettings,
     coachInitialized,
     setCoachInitialized,
   } = useAppStateContext();
@@ -74,10 +78,26 @@ const LifeFlowAppContent: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
     setSelectedTask(task);
   };
 
+  // Handler for opening settings
+  const handleOpenSettings = () => {
+    setShowSettings(true);
+  };
+
+  // Handler for going back to app from settings
+  const handleBackFromSettings = () => {
+    setShowSettings(false);
+  };
+
   // Render the appropriate view
   return (
     <div className="h-screen bg-gray-100">
-      {showCoach ? (
+      {showSettings ? (
+        <MemorySettings
+          user={user}
+          threadId={threadId}
+          onBackToApp={handleBackFromSettings}
+        />
+      ) : showCoach ? (
         <LifeCoachView
           user={user}
           threadId={threadId}
@@ -96,6 +116,7 @@ const LifeFlowAppContent: React.FC<LifeFlowAppProps> = ({ threadId, user }) => {
           user={user}
           onOpenCoach={handleOpenCoach}
           onSelectTask={handleSelectTask}
+          onOpenSettings={handleOpenSettings}
         />
       )}
 

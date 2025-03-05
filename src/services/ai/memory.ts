@@ -15,16 +15,18 @@ const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 // Initialize the LLM
 const llm = new ChatOpenAI({
   openAIApiKey: OPENAI_API_KEY,
-  modelName: "gpt-4", // Adjust based on your requirements
+  modelName: "gpt-4o", // Adjust based on your requirements
   temperature: 0.2,
 });
 
 // Simple function to trim messages
 const trimMessages = (messages: any[], maxCount = 10) => {
   // Always keep system messages
-  const systemMessages = messages.filter((msg: any) => msg.role === "system");
+  const systemMessages = messages.filter(
+    (msg: any) => msg._getType && msg._getType() === "system"
+  );
   const nonSystemMessages = messages.filter(
-    (msg: any) => msg.role !== "system"
+    (msg: any) => !msg._getType || msg._getType() !== "system"
   );
 
   // If we have too many messages, trim from the oldest (keeping system messages)
@@ -46,9 +48,13 @@ const createPersonalizedPrompt = (
     
     USER INFORMATION:
     Name: ${userProfile.name}
-    Occupation: ${userProfile.occupation}
-    Work Style: ${userProfile.workStyle}
-    Communication Style: ${userProfile.communicationStyle}
+    ${userProfile.occupation ? `Occupation: ${userProfile.occupation}` : ""}
+    ${userProfile.workStyle ? `Work Style: ${userProfile.workStyle}` : ""}
+    ${
+      userProfile.communicationStyle
+        ? `Communication Style: ${userProfile.communicationStyle}`
+        : ""
+    }
     
     CONTEXT:
     Current Task: ${context.currentTask || "None"}
@@ -84,36 +90,46 @@ export const sendMessage = async (
   contextInfo: { currentTask?: string; timeOfDay: string; energyLevel: string },
   threadId: string
 ): Promise<Message> => {
-  // Get existing messages
-  const existingMessages = await memoryService.getMessages(threadId);
+  try {
+    // Get existing messages from Firestore
+    const existingMessages = await memoryService.getMessages(threadId);
 
-  // Add user message to history
-  const userMessage: Message = {
-    sender: "user",
-    content: message,
-  };
+    // Add user message to history
+    const userMessage: Message = {
+      sender: "user",
+      content: message,
+    };
 
-  await memoryService.addMessage(threadId, userMessage);
+    await memoryService.addMessage(threadId, userMessage);
 
-  // Prepare messages for LLM
-  const messages = createPersonalizedPrompt(
-    userProfile,
-    contextInfo,
-    trimMessages([...existingMessages, userMessage] as any[], 10) as Message[]
-  );
+    // Prepare messages for LLM
+    const messages = createPersonalizedPrompt(
+      userProfile,
+      contextInfo,
+      existingMessages
+    );
 
-  // Call the model
-  const response = await llm.invoke(messages);
+    // Call the model
+    const response = await llm.invoke(trimMessages(messages, 10));
 
-  // Add AI response to history
-  const aiMessage: Message = {
-    sender: "ai",
-    content: response.content as string,
-  };
+    // Add AI response to history
+    const aiMessage: Message = {
+      sender: "ai",
+      content: response.content as string,
+    };
 
-  await memoryService.addMessage(threadId, aiMessage);
+    await memoryService.addMessage(threadId, aiMessage);
 
-  return aiMessage;
+    return aiMessage;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    // Return a fallback message if there's an error
+    return {
+      sender: "ai",
+      content:
+        "I'm sorry, I encountered an error. Please try again or check your connection.",
+    };
+  }
 };
 
 // Task breakdown function
@@ -121,29 +137,43 @@ export const breakdownTask = async (
   taskDescription: string,
   userProfile: UserProfile
 ): Promise<string[]> => {
-  const prompt = [
-    new SystemMessage(
-      `You are an ADHD task breakdown specialist. Break the following task into 3-5 small, concrete steps.
-      
-      User has these work preferences: ${userProfile.workStyle}
-      
-      Make the first step extremely small and easy to start (reduce activation energy).
-      Be specific and actionable.
-      Avoid vague instructions.`
-    ),
-    new HumanMessage(taskDescription),
-  ];
+  try {
+    const prompt = [
+      new SystemMessage(
+        `You are an ADHD task breakdown specialist. Break the following task into 3-5 small, concrete steps.
+        
+        ${
+          userProfile.workStyle
+            ? `User has these work preferences: ${userProfile.workStyle}`
+            : ""
+        }
+        
+        Make the first step extremely small and easy to start (reduce activation energy).
+        Be specific and actionable.
+        Avoid vague instructions.`
+      ),
+      new HumanMessage(taskDescription),
+    ];
 
-  const response = await llm.invoke(prompt);
+    const response = await llm.invoke(prompt);
 
-  // Parse the breakdown into an array of steps
-  const content = response.content as string;
-  const steps = content
-    .split(/\d+\./)
-    .filter((step) => step.trim())
-    .map((step) => step.trim());
+    // Parse the breakdown into an array of steps
+    const content = response.content as string;
+    const steps = content
+      .split(/\d+\./)
+      .filter((step) => step.trim())
+      .map((step) => step.trim());
 
-  return steps;
+    return steps;
+  } catch (error) {
+    console.error("Error breaking down task:", error);
+    // Return a fallback set of steps if there's an error
+    return [
+      "Start by breaking down this task",
+      "Identify the first small step",
+      "Work on completing one step at a time",
+    ];
+  }
 };
 
 // Initialize a new thread

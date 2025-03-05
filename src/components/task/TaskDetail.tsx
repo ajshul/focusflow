@@ -38,7 +38,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
   const {
     messages,
     isGenerating,
-    chatInputRef,
+    inputValue,
     handleInputChange,
     sendMessage,
     initializeChat,
@@ -174,8 +174,8 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
           messages={messages}
           isGenerating={isGenerating}
           handleSendMessage={sendMessage}
-          handleInputChange={(e) => handleInputChange(e)}
-          inputValue={chatInputRef.current}
+          handleInputChange={handleInputChange}
+          inputValue={inputValue}
           title="Task Assistant"
           quickSuggestions={quickSuggestions}
           focusMode={focusMode}

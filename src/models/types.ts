@@ -33,6 +33,8 @@ export interface Message {
   sender: "user" | "ai";
   content: string;
   timestamp?: Date;
+  id?: string;
+  editedAt?: Date;
 }
 
 export interface ChatResponse {

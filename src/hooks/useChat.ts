@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Message, UserProfile } from "../models/types";
 import { sendMessage } from "../services/ai/memory";
 
@@ -11,7 +11,8 @@ interface ChatContext {
 interface UseChatReturn {
   messages: Message[];
   isGenerating: boolean;
-  chatInputRef: React.MutableRefObject<string>;
+  inputValue: string;
+  setInputValue: React.Dispatch<React.SetStateAction<string>>;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   sendMessage: (messageText?: string) => Promise<void>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -25,10 +26,10 @@ export const useChat = (
 ): UseChatReturn => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const chatInputRef = useRef<string>("");
+  const [inputValue, setInputValue] = useState("");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    chatInputRef.current = e.target.value;
+    setInputValue(e.target.value);
   };
 
   const getContext = useCallback(() => {
@@ -50,13 +51,13 @@ export const useChat = (
 
   const sendChatMessage = useCallback(
     async (messageText?: string) => {
-      const text = messageText || chatInputRef.current.trim();
+      const text = messageText || inputValue.trim();
       if (!text) return;
 
       // Append user message
       setMessages((prev) => [...prev, { sender: "user", content: text }]);
 
-      chatInputRef.current = "";
+      setInputValue("");
       setIsGenerating(true);
 
       try {
@@ -89,7 +90,8 @@ export const useChat = (
   return {
     messages,
     isGenerating,
-    chatInputRef,
+    inputValue,
+    setInputValue,
     handleInputChange,
     sendMessage: sendChatMessage,
     setMessages,
