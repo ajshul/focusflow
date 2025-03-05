@@ -18,7 +18,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
   const handleTimerComplete = (mode: "work" | "break") => {
     if (mode === "work") {
-      setMessages((prev) => [
+      setMessages((prev: any[]) => [
         ...prev,
         {
           sender: "ai",
@@ -27,7 +27,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         },
       ]);
     } else {
-      setMessages((prev) => [
+      setMessages((prev: any[]) => [
         ...prev,
         {
           sender: "ai",

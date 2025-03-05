@@ -44,6 +44,7 @@ try {
 
 // Fallback in-memory storage
 const inMemoryMessages = new Map<string, Message[]>();
+const inMemoryUserThreads = new Map<string, Set<string>>();
 
 // Message with Firestore fields for internal use
 interface FirestoreMessage extends Omit<Message, "timestamp" | "editedAt"> {
@@ -67,29 +68,37 @@ class FirestoreMemoryService {
   }
 
   /**
-   * Add a message to a thread's history
-   * @param threadId - The ID of the chat thread
-   * @param message - The message to add
+   * Add a message to a thread and register the thread with the user
    */
-  async addMessage(threadId: string, message: Message): Promise<void> {
+  async addMessage(threadId: string, message: Message, userId?: string): Promise<void> {
     try {
-      // Generate a unique ID for this message
-      const messageId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
+      // Extract user ID from threadId if not provided
+      if (!userId && threadId.startsWith('user_')) {
+        userId = threadId.split('_')[1];
+      }
+      
+      // Add the message to the thread
       if (this.usingFallback) {
-        // Use in-memory storage with JavaScript Date object
-        const inMemoryMessage: Message = {
-          ...message,
-          timestamp: new Date(),
-          id: messageId,
-        };
-
+        // In-memory storage logic
         if (!inMemoryMessages.has(threadId)) {
           inMemoryMessages.set(threadId, []);
         }
-        inMemoryMessages.get(threadId)!.push(inMemoryMessage);
+        const messages = inMemoryMessages.get(threadId)!;
+        messages.push({ ...message, timestamp: new Date() });
+        
+        // Register the thread with the user if we have a userId
+        if (userId) {
+          if (!inMemoryUserThreads.has(userId)) {
+            inMemoryUserThreads.set(userId, new Set());
+          }
+          inMemoryUserThreads.get(userId)!.add(threadId);
+        }
         return;
       }
+      
+      // Firestore logic - standard implementation
+      // Generate a unique ID for this message
+      const messageId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
       // For Firestore, use serverTimestamp()
       const firestoreMessage: FirestoreMessage = {
@@ -109,11 +118,20 @@ class FirestoreMemoryService {
       await setDoc(doc(messagesColRef, messageId), firestoreMessage);
 
       console.log(`Message added to thread ${threadId}`);
+
+      // Also register the thread with the user if we have a userId
+      if (userId && db) {
+        const userThreadRef = doc(db, "users", userId, "threads", threadId);
+        await setDoc(userThreadRef, { 
+          threadId,
+          type: threadId.includes('_task_') ? 'task' : 'coach',
+          lastUpdated: serverTimestamp()
+        });
+      }
     } catch (error) {
       console.error("Error adding message:", error);
-      // Fallback to in-memory if Firestore fails
       this.usingFallback = true;
-      await this.addMessage(threadId, message);
+      return this.addMessage(threadId, message);
     }
   }
 
@@ -137,8 +155,29 @@ class FirestoreMemoryService {
       const messagesColRef = collection(db, "threads", threadId, "messages");
 
       // Query the messages, ordered by timestamp
-      const q = query(messagesColRef, orderBy("timestamp", "asc"));
-      const querySnapshot = await getDocs(q);
+      let attempt = 0;
+      const maxAttempts = 3;
+      let querySnapshot = null;
+      
+      while (attempt < maxAttempts) {
+        try {
+          const q = query(messagesColRef, orderBy("timestamp", "asc"));
+          querySnapshot = await getDocs(q);
+          break; // Success, exit loop
+        } catch (err) {
+          attempt++;
+          if (attempt >= maxAttempts) throw err;
+          console.warn(`Firestore query attempt ${attempt} failed, retrying...`);
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt)));
+        }
+      }
+
+      // Ensure we have a valid querySnapshot
+      if (!querySnapshot) {
+        console.error("Failed to retrieve messages after multiple attempts");
+        return [];
+      }
 
       // Convert the query results to an array of Message objects
       const messages: Message[] = [];
@@ -171,6 +210,8 @@ class FirestoreMemoryService {
       console.error("Error getting messages:", error);
       // Switch to fallback and try again
       this.usingFallback = true;
+      // Set this session to consistently use fallback
+      localStorage.setItem('use_memory_fallback', 'true');
       return this.getMessages(threadId);
     }
   }
@@ -293,35 +334,46 @@ class FirestoreMemoryService {
   }
 
   /**
-   * Get all thread IDs for a user
-   * @param userId - The ID of the user
-   * @returns An array of thread IDs
+   * Get all threads for a user
    */
-  async getThreads(userId: string): Promise<string[]> {
+  async getThreads(userId: string): Promise<{id: string, type: string, title: string}[]> {
     try {
       if (this.usingFallback) {
-        // Use in-memory storage
-        return Array.from(inMemoryMessages.keys());
+        // In-memory storage
+        const threadIds = Array.from(inMemoryUserThreads.get(userId) || []);
+        return threadIds.map(id => {
+          const isTask = id.includes('_task_');
+          const taskId = isTask ? id.split('_task_')[1] : '';
+          
+          return {
+            id,
+            type: isTask ? 'task' : 'coach',
+            title: isTask ? `Task ${taskId}` : 'Life Coach'
+          };
+        });
       }
-
-      if (!db) {
-        throw new Error("Firestore is not initialized");
-      }
-
-      // In a real app, you would query threads by user ID
-      // For this example, we'll just get all threads
-      const threadsColRef = collection(db, "threads");
-      const querySnapshot = await getDocs(threadsColRef);
-
-      const threadIds: string[] = [];
+      
+      if (!db) throw new Error("Firestore is not initialized");
+      
+      const threadsRef = collection(db, "users", userId, "threads");
+      const querySnapshot = await getDocs(threadsRef);
+      
+      const threads: {id: string, type: string, title: string}[] = [];
       querySnapshot.forEach((doc) => {
-        threadIds.push(doc.id);
+        const data = doc.data();
+        const isTask = data.threadId.includes('_task_');
+        const taskId = isTask ? data.threadId.split('_task_')[1] : '';
+        
+        threads.push({
+          id: data.threadId,
+          type: data.type || (isTask ? 'task' : 'coach'),
+          title: isTask ? `Task ${taskId}` : 'Life Coach'
+        });
       });
-
-      return threadIds;
+      
+      return threads;
     } catch (error) {
       console.error("Error getting threads:", error);
-      // Switch to fallback if needed
       this.usingFallback = true;
       return this.getThreads(userId);
     }

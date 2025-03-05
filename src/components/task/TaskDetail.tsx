@@ -6,13 +6,14 @@ import TaskBreakdown from "./TaskBreakdown";
 import ChatInterface from "../chat/ChatInterface";
 import { useTaskContext } from "../../context/TaskContext";
 import { useAppStateContext } from "../../context/AppStateContext";
-import { useChat } from "../../hooks/useChat";
+import { useTaskChat } from "../../hooks/useChat";
 import { useEmailDraft } from "../../hooks/useEmailDraft";
+import { initializeTaskThread } from "../../services/ai/memory";
 
 interface TaskDetailProps {
   task: Task;
   user: UserProfile;
-  threadId: string;
+  threadId: string; // This is the life coach thread ID
   onBackToTasks: () => void;
   onOpenCoach: () => void;
 }
@@ -20,21 +21,17 @@ interface TaskDetailProps {
 const TaskDetail: React.FC<TaskDetailProps> = ({
   task,
   user,
-  threadId,
+  threadId, // Life coach thread ID
   onBackToTasks,
   onOpenCoach,
 }) => {
   const { completeTask, generateTaskBreakdown } = useTaskContext();
   const { focusMode, setFocusMode, setShowEmailModal } = useAppStateContext();
+  
+  // Initialize task-specific thread ID with the correct format
+  const taskThreadId = `user_${user.id}_task_${task.id}`;
 
-  // Get the context for the chat
-  const getTaskContext = () => ({
-    currentTask: task.title,
-    timeOfDay: getCurrentTimeOfDay(),
-    energyLevel: "medium",
-  });
-
-  // Initialize chat with a custom hook
+  // Initialize chat with the task-specific hook
   const {
     messages,
     isGenerating,
@@ -42,7 +39,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
     handleInputChange,
     sendMessage,
     initializeChat,
-  } = useChat(user, threadId, getTaskContext);
+  } = useTaskChat(user, task, taskThreadId, threadId);
 
   // Email functionality with a custom hook
   const {
@@ -53,27 +50,22 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
     setEmailRecipients,
     setEmailSubject,
     handleCreateEmail,
-  } = useEmailDraft(user, threadId, () => setShowEmailModal(true));
+  } = useEmailDraft(user, taskThreadId, () => setShowEmailModal(true));
 
   // Welcome message when a task is selected
   useEffect(() => {
-    initializeChat(
-      `I see you're working on "${task.title}". How can I help you with this task?`
-    );
+    // Only initialize with welcome message if no messages yet
+    if (messages.length === 0) {
+      initializeChat(
+        `I see you're working on "${task.title}". How can I help you with this task?`
+      );
+    }
 
     // Generate breakdown if not available
     if (!task.breakdown) {
       generateTaskBreakdown(task);
     }
-  }, [task.id]); // Re-run only if task ID changes
-
-  // Helper to get time of day
-  const getCurrentTimeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "morning";
-    if (hour < 17) return "afternoon";
-    return "evening";
-  };
+  }, [task.id, messages.length]);
 
   // Task completion handler
   const handleCompleteTask = () => {
@@ -100,6 +92,17 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
       message: "I'm feeling stuck. Help me get started.",
     },
   ];
+
+  // Add this helper function in the TaskDetail component
+  const renderTaskBreakdown = () => {
+    if (!task.breakdown || task.breakdown.length === 0) {
+      return <div className="text-slate-500">Generating breakdown...</div>;
+    }
+    
+    return (
+      <TaskBreakdown task={task} focusMode={focusMode} />
+    );
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -135,10 +138,13 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
         className={`flex-grow overflow-auto ${focusMode ? "bg-gray-100" : ""}`}
       >
         {/* Pomodoro Timer Section */}
-        <PomodoroTimer user={user} threadId={threadId} focusMode={focusMode} />
+        <PomodoroTimer user={user} threadId={taskThreadId} focusMode={focusMode} />
 
         {/* Task Breakdown Section */}
-        <TaskBreakdown task={task} focusMode={focusMode} />
+        <div className="mt-4">
+          <h3 className="text-md font-medium mb-2">Task Breakdown:</h3>
+          {renderTaskBreakdown()}
+        </div>
 
         {/* Context section - only show if not in focus mode */}
         {!focusMode && task.context && (
@@ -170,7 +176,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
         {/* AI conversation section */}
         <ChatInterface
           user={user}
-          threadId={threadId}
+          threadId={taskThreadId}
           messages={messages}
           isGenerating={isGenerating}
           handleSendMessage={sendMessage}
@@ -197,6 +203,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({
           className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
           onClick={() => {
             onOpenCoach();
+            // Tell the life coach we're switching contexts
             sendMessage(`I need help with my task: "${task.title}"`);
           }}
         >

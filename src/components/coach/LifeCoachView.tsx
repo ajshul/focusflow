@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { UserProfile } from "../../models/types";
 import { useTaskContext } from "../../context/TaskContext";
-import { useChat } from "../../hooks/useChat";
+import { useLifeCoachChat } from "../../hooks/useChat";
 import ChatInterface from "../chat/ChatInterface";
 
 interface LifeCoachViewProps {
@@ -18,22 +18,24 @@ const LifeCoachView: React.FC<LifeCoachViewProps> = ({
 }) => {
   const { tasks } = useTaskContext();
 
-  // Get context for chat
-  const getCoachContext = () => {
-    const hour = new Date().getHours();
-    let timeOfDay = "morning";
-    if (hour >= 12 && hour < 17) timeOfDay = "afternoon";
-    if (hour >= 17) timeOfDay = "evening";
+  // Initialize chat functionality with the life coach hook
+  const { 
+    messages, 
+    isGenerating, 
+    inputValue, 
+    handleInputChange, 
+    sendMessage,
+    initializeChat 
+  } = useLifeCoachChat(user, threadId);
 
-    return {
-      timeOfDay,
-      energyLevel: "medium",
-    };
-  };
-
-  // Initialize chat functionality
-  const { messages, isGenerating, inputValue, handleInputChange, sendMessage } =
-    useChat(user, threadId, getCoachContext);
+  // Initialize with a welcome message if there are no messages
+  React.useEffect(() => {
+    if (messages.length === 0) {
+      initializeChat(
+        "Welcome back! I'm your ADHD-focused life coach. I have access to all your tasks and can help with prioritization, time management, and overcoming barriers. How can I support you today?"
+      );
+    }
+  }, []);
 
   // Chat presets
   const chatPresets = [
@@ -114,20 +116,8 @@ const LifeCoachView: React.FC<LifeCoachViewProps> = ({
             handleInputChange={handleInputChange}
             inputValue={inputValue}
             title="Ask Your Coach"
+            quickSuggestions={chatPresets}
           />
-
-          <div className="space-y-2 mb-3">
-            {chatPresets.map((preset, index) => (
-              <button
-                key={index}
-                type="button"
-                className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-md transition-colors"
-                onClick={() => sendMessage(preset.message)}
-              >
-                {preset.text}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>

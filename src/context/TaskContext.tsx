@@ -204,25 +204,22 @@ export const TaskProvider: React.FC<{
 
   // Generate task breakdown
   const generateTaskBreakdown = async (task: Task) => {
-    if (!task.breakdown) {
-      setIsGeneratingBreakdown(true);
-      try {
-        const steps = await breakdownTask(task.title, user);
-
-        // Update the task with the breakdown
-        const updatedTasks = tasks.map((t) =>
-          t.id === task.id ? { ...t, breakdown: steps } : t
-        );
-        setTasks(updatedTasks);
-
-        // If this is the selected task, update it too
-        if (selectedTask && selectedTask.id === task.id) {
-          setSelectedTask({ ...task, breakdown: steps });
+    if (task.breakdown && task.breakdown.length > 0) return;
+    
+    try {
+      const steps = await breakdownTask(task, user);
+      
+      const updatedTasks = tasks.map((t) => {
+        if (t.id === task.id) {
+          return { ...t, breakdown: steps };
         }
-      } catch (error) {
-        console.error("Failed to generate breakdown:", error);
-      }
-      setIsGeneratingBreakdown(false);
+        return t;
+      });
+      
+      setTasks(updatedTasks);
+      storageService.saveTasks(user.id, updatedTasks);
+    } catch (error) {
+      console.error("Failed to generate task breakdown:", error);
     }
   };
 

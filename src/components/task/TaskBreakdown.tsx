@@ -15,6 +15,33 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
   const { toggleStepCompletion, generateTaskBreakdown, isGeneratingBreakdown } =
     useTaskContext();
 
+  if (!task.breakdown || task.breakdown.length === 0) {
+    return (
+      <div className={`p-4 ${
+        focusMode
+          ? "bg-white rounded-lg shadow-lg mx-4 my-4 border"
+          : "border-b"
+      }`}>
+        <div className="flex justify-between mb-4">
+          <h2 className="font-medium text-indigo-700">Task Breakdown</h2>
+          <button
+            type="button"
+            className="text-indigo-600 text-sm hover:text-indigo-800 transition-colors"
+            onClick={() => generateTaskBreakdown(task)}
+          >
+            Generate
+          </button>
+        </div>
+        
+        <div className="bg-gray-50 p-4 rounded-md text-center">
+          <p className="text-gray-500">
+            {isGeneratingBreakdown ? "Generating task breakdown..." : "Ask me to break down this task for you"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`p-4 ${

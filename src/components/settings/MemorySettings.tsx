@@ -9,6 +9,13 @@ interface MemorySettingsProps {
   onBackToApp: () => void;
 }
 
+// Define the Thread type to match what memoryService returns
+interface Thread {
+  id: string;
+  type: string;
+  title: string;
+}
+
 const MemorySettings: React.FC<MemorySettingsProps> = ({
   user,
   threadId,
@@ -18,7 +25,7 @@ const MemorySettings: React.FC<MemorySettingsProps> = ({
   const [loading, setLoading] = useState(true);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
-  const [threads, setThreads] = useState<string[]>([]);
+  const [threads, setThreads] = useState<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState(threadId);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -133,6 +140,18 @@ const MemorySettings: React.FC<MemorySettingsProps> = ({
     setCurrentThreadId(e.target.value);
   };
 
+  // Add a function to get a human-readable thread name
+  const getThreadDisplayName = (threadId: string) => {
+    if (threadId.includes('_task_')) {
+      const taskId = threadId.split('_task_')[1];
+      // You could look up the task title here for a more descriptive name
+      return `Task ${taskId}`;
+    } else if (threadId.includes('_coach')) {
+      return 'Life Coach';
+    }
+    return threadId;
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
@@ -171,13 +190,13 @@ const MemorySettings: React.FC<MemorySettingsProps> = ({
 
           <div className="flex items-center mb-4">
             <select
-              className="flex-grow border rounded-md p-2 mr-2"
+              className="w-full p-2 border rounded mb-4"
               value={currentThreadId}
               onChange={handleThreadChange}
             >
-              {threads.map((threadId) => (
-                <option key={threadId} value={threadId}>
-                  Thread: {threadId}
+              {threads.map(thread => (
+                <option key={thread.id} value={thread.id}>
+                  {thread.title || getThreadDisplayName(thread.id)}
                 </option>
               ))}
             </select>

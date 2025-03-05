@@ -8,7 +8,7 @@ import { storageService } from "./services/storage/browserStorage";
 function App() {
   console.log("App: render started"); // Debugging re-renders
 
-  // 🔹 Ensure user ID is constant and doesn’t trigger re-renders
+  // 🔹 Ensure user ID is constant and doesn't trigger re-renders
   const userId = localStorage.getItem("userId") || uuidv4();
 
   // 🔹 Ensure user state remains stable across renders
@@ -37,7 +37,7 @@ function App() {
 
     const initialize = async () => {
       localStorage.setItem("userId", userId); // Store once, avoid unnecessary updates
-      const thread = initializeAIAssistant();
+      const thread = initializeAIAssistant(userId); // Pass the userId parameter
       setAiThread(thread.threadId);
     };
 
